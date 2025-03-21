@@ -1,48 +1,125 @@
-Overview
-========
+# Music Streaming ETL Pipeline - Airflow DAG
 
-Welcome to Astronomer! This project was generated after you ran 'astro dev init' using the Astronomer CLI. This readme describes the contents of the project, as well as how to run Apache Airflow on your local machine.
+## Overview
+This repository contains an Apache Airflow DAG (`music_streaming_pipeline_dynamo`) designed to orchestrate an ETL (Extract, Transform, Load) pipeline for processing music streaming data. The pipeline extracts data from Amazon S3, validates and transforms it using AWS Glue, and archives the processed data. The DAG is built to handle large datasets efficiently and ensures data integrity through validation steps.
 
-Project Contents
-================
+---
 
-Your Astro project contains the following files and folders:
+## Pipeline Objectives
+1. **Extract**:
+   - Fetch user and song reference data from Amazon S3.
+   - Fetch streaming data from Amazon S3.
 
-- dags: This folder contains the Python files for your Airflow DAGs. By default, this directory includes one example DAG:
-    - `example_astronauts`: This DAG shows a simple ETL pipeline example that queries the list of astronauts currently in space from the Open Notify API and prints a statement for each astronaut. The DAG uses the TaskFlow API to define tasks in Python, and dynamic task mapping to dynamically print a statement for each astronaut. For more on how this DAG works, see our [Getting started tutorial](https://www.astronomer.io/docs/learn/get-started-with-airflow).
-- Dockerfile: This file contains a versioned Astro Runtime Docker image that provides a differentiated Airflow experience. If you want to execute other commands or overrides at runtime, specify them here.
-- include: This folder contains any additional files that you want to include as part of your project. It is empty by default.
-- packages.txt: Install OS-level packages needed for your project by adding them to this file. It is empty by default.
-- requirements.txt: Install Python packages needed for your project by adding them to this file. It is empty by default.
-- plugins: Add custom or community plugins for your project to this file. It is empty by default.
-- airflow_settings.yaml: Use this local-only file to specify Airflow Connections, Variables, and Pools instead of entering them in the Airflow UI as you develop DAGs in this project.
+2. **Validate**:
+   - Validate the existence of required data files.
+   - Validate the schema of the data files to ensure they contain the required columns.
 
-Deploy Your Project Locally
-===========================
+3. **Transform**:
+   - Use AWS Glue to perform ETL operations on the data.
 
-1. Start Airflow on your local machine by running 'astro dev start'.
+4. **Archive**:
+   - Move processed raw data files to an archive folder in S3 to avoid reprocessing.
 
-This command will spin up 4 Docker containers on your machine, each for a different Airflow component:
+---
 
-- Postgres: Airflow's Metadata Database
-- Webserver: The Airflow component responsible for rendering the Airflow UI
-- Scheduler: The Airflow component responsible for monitoring and triggering tasks
-- Triggerer: The Airflow component responsible for triggering deferred tasks
+## Pipeline Architecture
+The pipeline consists of the following components:
+- **Amazon S3**: Stores raw and reference data files.
+- **AWS Glue**: Performs ETL operations on the data.
+- **Apache Airflow**: Orchestrates the workflow and manages task dependencies.
 
-2. Verify that all 4 Docker containers were created by running 'docker ps'.
+---
 
-Note: Running 'astro dev start' will start your project with the Airflow Webserver exposed at port 8080 and Postgres exposed at port 5432. If you already have either of those ports allocated, you can either [stop your existing Docker containers or change the port](https://www.astronomer.io/docs/astro/cli/troubleshoot-locally#ports-are-not-available-for-my-local-airflow-webserver).
+## Pipeline Workflow
+The pipeline is implemented as a Directed Acyclic Graph (DAG) in Airflow. Below is a breakdown of the tasks and their dependencies:
 
-3. Access the Airflow UI for your local Airflow project. To do so, go to http://localhost:8080/ and log in with 'admin' for both your Username and Password.
+| Task ID               | Description                                                                 |
+|-----------------------|-----------------------------------------------------------------------------|
+| `validate_data_files` | Validates the existence of required data files in the specified S3 bucket.  |
+| `validate_columns`    | Validates the schema of the data files to ensure they contain the required columns. |
+| `run_etl_job`         | Executes an AWS Glue job to transform the data.                             |
+| `archive_raw_data`    | Moves processed raw data files to an archive folder in S3.                  |
 
-You should also be able to access your Postgres Database at 'localhost:5432/postgres'.
+---
 
-Deploy Your Project to Astronomer
-=================================
+## Task Dependencies
+The tasks are executed in the following order:
+1. `validate_data_files` → `validate_columns` → `run_etl_job` → `archive_raw_data`
 
-If you have an Astronomer account, pushing code to a Deployment on Astronomer is simple. For deploying instructions, refer to Astronomer documentation: https://www.astronomer.io/docs/astro/deploy-code/
+---
 
-Contact
-=======
+## Key Features
+1. **Data Validation**:
+   - Ensures that all required data files are present in the S3 bucket.
+   - Validates the schema of the data files to ensure they contain the required columns.
 
-The Astronomer CLI is maintained with love by the Astronomer team. To report a bug or suggest a change, reach out to our support.
+2. **Error Handling**:
+   - Each task includes error handling to log and raise exceptions if something goes wrong.
+
+3. **Data Archiving**:
+   - Archives processed raw data files to avoid reprocessing.
+
+4. **Scalability**:
+   - Designed to handle large datasets efficiently using AWS Glue.
+
+---
+
+## Airflow Connections
+The DAG uses the following Airflow connections:
+1. **AWS Connection**:
+   - Connection ID: `aws_conn`
+   - AWS Access Key ID: Your AWS access key.
+   - AWS Secret Access Key: Your AWS secret key.
+
+---
+
+## Airflow Variables
+The DAG uses the following Airflow variables:
+1. **`bucket_name`**: The name of the S3 bucket where the data is stored.
+2. **`glue_job_name`**: The name of the AWS Glue job to execute.
+3. **`glue_script_location`**: The S3 path to the Glue script.
+4. **`database_name`**: The name of the Glue database (default: `music_streams`).
+
+---
+
+## Pipeline Execution
+- **Schedule**: The DAG is set to run manually (`schedule_interval=None`).
+- **Trigger**: The DAG can be triggered manually via the Airflow UI or API.
+
+---
+
+## Monitoring and Logging
+- **Airflow UI**: Provides real-time monitoring of task status, logs, and retries.
+- **Logging**: Each task logs its progress and errors for easy debugging.
+
+---
+
+## Future Enhancements
+1. **Incremental Data Processing**:
+   - Process only new or updated data to improve efficiency.
+2. **Data Validation**:
+   - Add more robust data validation steps to ensure data quality.
+3. **Alerting**:
+   - Integrate with alerting tools (e.g., Slack, PagerDuty) to notify stakeholders of pipeline failures.
+4. **Dashboard**:
+   - Build a dashboard (e.g., using Tableau, Power BI, or Amazon QuickSight) to visualize the processed data.
+
+---
+
+![screenshot](image.png)
+
+## How to Use
+1. **Set Up Airflow**:
+   - Ensure Apache Airflow is installed and configured.
+   - Set up the required Airflow connections (`aws_conn`) and variables (`bucket_name`, `glue_job_name`, `glue_script_location`, `database_name`).
+
+2. **Deploy the DAG**:
+   - Place the DAG file (`music_streaming_pipeline_dynamo.py`) in your Airflow `dags` folder.
+
+3. **Trigger the DAG**:
+   - Trigger the DAG manually via the Airflow UI or API.
+
+4. **Monitor Progress**:
+   - Use the Airflow UI to monitor the progress of the pipeline and view logs.
+
+---
