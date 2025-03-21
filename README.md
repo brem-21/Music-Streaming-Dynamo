@@ -1,125 +1,147 @@
-# Music Streaming ETL Pipeline - Airflow DAG
+# Music Streaming Analytics Pipeline
 
 ## Overview
-This repository contains an Apache Airflow DAG (`music_streaming_pipeline_dynamo`) designed to orchestrate an ETL (Extract, Transform, Load) pipeline for processing music streaming data. The pipeline extracts data from Amazon S3, validates and transforms it using AWS Glue, and archives the processed data. The DAG is built to handle large datasets efficiently and ensures data integrity through validation steps.
+A robust ETL pipeline built with Apache Airflow that processes music streaming data and stores analytics in DynamoDB. The pipeline aggregates listening patterns, calculates key metrics, and provides insights into music consumption trends.
 
----
+## Architecture
 
-## Pipeline Objectives
-1. **Extract**:
-   - Fetch user and song reference data from Amazon S3.
-   - Fetch streaming data from Amazon S3.
+### Data Flow
+1. **Source Data** (S3)
+   - User data
+   - Song metadata
+   - Streaming events
 
-2. **Validate**:
-   - Validate the existence of required data files.
-   - Validate the schema of the data files to ensure they contain the required columns.
+2. **Processing Layer** (AWS Glue)
+   - Data validation
+   - Schema conformity checks
+   - ETL transformations
 
-3. **Transform**:
-   - Use AWS Glue to perform ETL operations on the data.
+3. **Storage Layer** (DynamoDB)
+   - Genre-based listening metrics
+   - User engagement statistics
+   - Temporal analytics
 
-4. **Archive**:
-   - Move processed raw data files to an archive folder in S3 to avoid reprocessing.
+### DynamoDB Tables
+- `music_streaming_genre_listen_count`: Track genre popularity
+- `music_streaming_unique_listeners`: Unique listener counts
+- `music_streaming_total_listening_time`: Cumulative listening duration
+- `music_streaming_avg_listening_time`: Average session duration
+- `music_streaming_top_songs`: Most popular tracks
+- `music_streaming_top_genres`: Trending genres
 
----
+## Prerequisites
 
-## Pipeline Architecture
-The pipeline consists of the following components:
-- **Amazon S3**: Stores raw and reference data files.
-- **AWS Glue**: Performs ETL operations on the data.
-- **Apache Airflow**: Orchestrates the workflow and manages task dependencies.
+### Local Development
+```bash
+python 3.10+
+Apache Airflow 2.7.1+
+AWS CLI
+```
 
----
+### AWS Services
+- S3 bucket for data storage
+- DynamoDB tables
+- AWS Glue for ETL jobs
+- IAM roles with appropriate permissions
 
-## Pipeline Workflow
-The pipeline is implemented as a Directed Acyclic Graph (DAG) in Airflow. Below is a breakdown of the tasks and their dependencies:
+## Quick Start
 
-| Task ID               | Description                                                                 |
-|-----------------------|-----------------------------------------------------------------------------|
-| `validate_data_files` | Validates the existence of required data files in the specified S3 bucket.  |
-| `validate_columns`    | Validates the schema of the data files to ensure they contain the required columns. |
-| `run_etl_job`         | Executes an AWS Glue job to transform the data.                             |
-| `archive_raw_data`    | Moves processed raw data files to an archive folder in S3.                  |
+1. **Clone and Setup**
+```bash
+git clone <repository-url>
+cd Music-Streaming-Dynamo
+make install
+```
 
----
+2. **Configure AWS Resources**
+```bash
+# Set up required AWS resources
+./setup-script.sh
+```
 
-## Task Dependencies
-The tasks are executed in the following order:
-1. `validate_data_files` → `validate_columns` → `run_etl_job` → `archive_raw_data`
+3. **Set Airflow Variables**
+```python
+bucket_name: "music-streaming-data-dynamo"
+glue_job_name: "<your-glue-job-name>"
+glue_script_location: "s3://<bucket>/glue_scripts/"
+database_name: "music_streams"
+```
 
----
+4. **Run the Pipeline**
+```bash
+# Using Astro CLI
+astro dev start
+```
 
-## Key Features
-1. **Data Validation**:
-   - Ensures that all required data files are present in the S3 bucket.
-   - Validates the schema of the data files to ensure they contain the required columns.
+## Development
 
-2. **Error Handling**:
-   - Each task includes error handling to log and raise exceptions if something goes wrong.
+### Project Structure
+```
+Music-Streaming-Dynamo/
+├── dags/
+│   └── music_streaming_with_etl.py
+├── include/
+│   ├── glue-etl-script.py
+│   └── dynamodb-loader-script.py
+├── setup-script.sh
+├── requirements.txt
+└── Dockerfile
+```
 
-3. **Data Archiving**:
-   - Archives processed raw data files to avoid reprocessing.
+### Make Commands
+```bash
+make install    # Install dependencies
+make format     # Format code with black
+make lint       # Run pylint
+make refactor   # Run format and lint
+make all        # Run all commands
+```
 
-4. **Scalability**:
-   - Designed to handle large datasets efficiently using AWS Glue.
+## Data Schema
 
----
+### Input Data
+- **Users**: user_id, user_name, user_age, user_country, created_at
+- **Songs**: track_id, artists, album_name, track_name, popularity, duration_ms, track_genre
+- **Streams**: user_id, track_id, listen_time
 
-## Airflow Connections
-The DAG uses the following Airflow connections:
-1. **AWS Connection**:
-   - Connection ID: `aws_conn`
-   - AWS Access Key ID: Your AWS access key.
-   - AWS Secret Access Key: Your AWS secret key.
+### Processed Metrics
+- Genre-based listening patterns
+- User engagement metrics
+- Temporal trends
+- Popular track analytics
 
----
+## Monitoring
 
-## Airflow Variables
-The DAG uses the following Airflow variables:
-1. **`bucket_name`**: The name of the S3 bucket where the data is stored.
-2. **`glue_job_name`**: The name of the AWS Glue job to execute.
-3. **`glue_script_location`**: The S3 path to the Glue script.
-4. **`database_name`**: The name of the Glue database (default: `music_streams`).
+### Airflow UI
+- Task execution status
+- DAG run history
+- Error logs
+- Performance metrics
 
----
+### AWS CloudWatch
+- Glue job metrics
+- DynamoDB throughput
+- S3 operations
 
-## Pipeline Execution
-- **Schedule**: The DAG is set to run manually (`schedule_interval=None`).
-- **Trigger**: The DAG can be triggered manually via the Airflow UI or API.
+## Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Make changes and test
+4. Run code quality checks:
+```bash
+make refactor
+```
+5. Submit a pull request
 
----
+## Docker Support
+The project includes Docker support using Astro Runtime:
+```bash
+# Build and run using Astro
+astro dev start
+```
 
-## Monitoring and Logging
-- **Airflow UI**: Provides real-time monitoring of task status, logs, and retries.
-- **Logging**: Each task logs its progress and errors for easy debugging.
+## License
+[Add License Information]
 
----
-
-## Future Enhancements
-1. **Incremental Data Processing**:
-   - Process only new or updated data to improve efficiency.
-2. **Data Validation**:
-   - Add more robust data validation steps to ensure data quality.
-3. **Alerting**:
-   - Integrate with alerting tools (e.g., Slack, PagerDuty) to notify stakeholders of pipeline failures.
-4. **Dashboard**:
-   - Build a dashboard (e.g., using Tableau, Power BI, or Amazon QuickSight) to visualize the processed data.
-
----
-
-![screenshot](image.png)
-
-## How to Use
-1. **Set Up Airflow**:
-   - Ensure Apache Airflow is installed and configured.
-   - Set up the required Airflow connections (`aws_conn`) and variables (`bucket_name`, `glue_job_name`, `glue_script_location`, `database_name`).
-
-2. **Deploy the DAG**:
-   - Place the DAG file (`music_streaming_pipeline_dynamo.py`) in your Airflow `dags` folder.
-
-3. **Trigger the DAG**:
-   - Trigger the DAG manually via the Airflow UI or API.
-
-4. **Monitor Progress**:
-   - Use the Airflow UI to monitor the progress of the pipeline and view logs.
-
----
+## Contact
+[Add Contact Information]
