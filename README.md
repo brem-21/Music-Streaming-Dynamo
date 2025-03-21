@@ -139,9 +139,3 @@ The project includes Docker support using Astro Runtime:
 # Build and run using Astro
 astro dev start
 ```
-
-## License
-[Add License Information]
-
-## Contact
-[Add Contact Information]
